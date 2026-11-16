@@ -29,18 +29,21 @@ function MainContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [isSharedLink, setIsSharedLink] = useState(false);
 
   useEffect(() => {
-    // If a room parameter is present in URL, prepopulate or prompt to join
+    // If a room parameter is present in URL, prepopulate and prompt to join immediately
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get("room");
     if (roomParam) {
       setRoomName(roomParam);
+      setIsSharedLink(true);
       setIsModalOpen(true);
     }
   }, []);
 
   const handleOpenJoin = (customRoom?: string) => {
+    setIsSharedLink(false);
     if (customRoom) {
       setRoomName(customRoom);
     } else if (!roomName) {
@@ -147,6 +150,7 @@ function MainContent() {
         isOpen={isModalOpen}
         initialRoom={roomName}
         isJoining={isJoining}
+        isSharedLink={isSharedLink}
         onClose={() => setIsModalOpen(false)}
         onJoin={handleJoin}
       />

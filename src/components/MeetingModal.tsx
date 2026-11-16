@@ -23,6 +23,7 @@ interface MeetingModalProps {
   onJoin: (roomName: string, username: string, meetingMeta?: Meeting) => void;
   initialRoom?: string;
   isJoining?: boolean;
+  isSharedLink?: boolean;
 }
 
 export default function MeetingModal({
@@ -31,6 +32,7 @@ export default function MeetingModal({
   onJoin,
   initialRoom = "",
   isJoining = false,
+  isSharedLink = false,
 }: MeetingModalProps) {
   const { userFullName } = useAuth();
   const [activeTab, setActiveTab] = useState<"instant" | "schedule">("instant");
@@ -40,8 +42,17 @@ export default function MeetingModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   React.useEffect(() => {
+    if (initialRoom) {
+      setRoom(initialRoom);
+    }
+  }, [initialRoom]);
+
+  React.useEffect(() => {
     if (userFullName && !name) {
       setName(userFullName);
+    } else if (!name && typeof window !== "undefined") {
+      const saved = localStorage.getItem("quickmeet_guest_name");
+      if (saved) setName(saved);
     }
   }, [userFullName]);
 
@@ -57,8 +68,12 @@ export default function MeetingModal({
     setErrorMsg(null);
 
     if (!name.trim() || !room.trim()) {
-      setErrorMsg("Por favor, preencha o seu nome e o código da sala.");
+      setErrorMsg("Por favor, preencha o seu nome.");
       return;
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("quickmeet_guest_name", name.trim());
     }
 
     try {
@@ -113,6 +128,98 @@ export default function MeetingModal({
     setRoom(`${prefix}-${loc}-${rand}`);
   };
 
+  // CASO 1: CONVITE DE LINK PARTILHADO (Apenas o campo de Nome)
+  if (isSharedLink) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+        <div 
+          className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Barra decorativa superior */}
+          <div className="h-2 w-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-500" />
+
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Fechar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 flex-shrink-0">
+                <Video className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Entrar na Reunião</h3>
+                <div className="text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5 mt-0.5">
+                    Sala: <span className="font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">{room}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleInstantSubmit} className="space-y-5">
+              {errorMsg && (
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  O Seu Nome
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-600" />
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Digite o seu nome para entrar"
+                    className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-2xl text-base font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-purple-600 transition shadow-inner"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">
+                  Você entrará diretamente na sala de conferência com este nome.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isJoining || !name.trim()}
+                  className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-purple-600 hover:bg-purple-700 active:scale-[0.99] text-white font-bold text-base shadow-xl shadow-purple-600/30 transition disabled:opacity-50"
+                >
+                  {isJoining ? (
+                    <span>A ligar à sala...</span>
+                  ) : (
+                    <>
+                      <span>Entrar na Reunião Agora</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            <p className="mt-4 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Dados sincronizados com Supabase & encriptação LiveKit RTC</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // CASO 2: MODAL PADRÃO DE CRIAÇÃO E AGENDAMENTO
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
       <div 
@@ -133,7 +240,7 @@ export default function MeetingModal({
         <div className="p-8">
           {/* Cabeçalho */}
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100">
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 flex-shrink-0">
               <Video className="w-6 h-6" />
             </div>
             <div>
